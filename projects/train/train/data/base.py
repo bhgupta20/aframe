@@ -76,6 +76,7 @@ class BaseAframeDataset(pl.LightningDataModule):
         snr_alpha: float = 3,
         left_pad: float = 0,
         right_pad: float = 0,
+        schedule: Optional[List[List[int]]] = None,
         fftlength: Optional[float] = None,
         highpass: Optional[float] = None,
         lowpass: Optional[float] = None,

@@ -33,6 +33,8 @@ def rejection_sample(
     lowpass: float = None,
     pool: int = None,
     max_num_samples: int,
+    lowpass: float = None,
+    pool: int = None,
 ) -> Tuple[ResponseSetFields, InjectionParameterSet]:
     # get the detector tensors and vertices
     # for projecting our waveforms

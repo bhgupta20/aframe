@@ -1,7 +1,7 @@
 from typing import Callable, Optional, Tuple
 
 import torch
-from ml4gw.transforms import SpectralDensity, Whiten
+from ml4gw.transforms import SpectralDensity, Whiten, Decimator
 from ml4gw.utils.slicing import unfold_windows
 from ml4gw.transforms.decimator import Decimator
 from ml4gw.transforms.qtransform import SingleQTransform
@@ -181,15 +181,22 @@ class BatchWhitenerDecimate(torch.nn.Module):
         highpass: Optional[float] = None,
         lowpass: Optional[float] = None,
         return_whitened: bool = False,
+<<<<<<< HEAD
         schedule:  Optional[list[list[int]]] = [[0, 40, 256], [40, 58, 512], [58, 60, 2048]],
+=======
+>>>>>>> d8f9509 (setting up the time-spectrogram aframe)
     ) -> None:
         super().__init__()
         self.stride_size = int(sample_rate / inference_sampling_rate)
         self.kernel_size = int(kernel_length * sample_rate)
         self.augmentor = augmentor
         self.return_whitened = return_whitened
+<<<<<<< HEAD
         self.schedule = torch.tensor(schedule, dtype=torch.int)
         self.decimator = Decimator(sample_rate=sample_rate, schedule=self.schedule)
+=======
+        self.decimator = Decimator(sample_rate=sample_rate, schedule=torch.tensor([[0, 40, 256], [40, 58, 512], [58, 60, 2048]]))
+>>>>>>> d8f9509 (setting up the time-spectrogram aframe)
 
         # do foreground length calculation in units of samples,
         # then convert back to length to guard for intification

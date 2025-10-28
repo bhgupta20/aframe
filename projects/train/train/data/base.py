@@ -611,7 +611,7 @@ class BaseAframeDataset(pl.LightningDataModule):
         Returns:
             raw strain background kernels, injected kernels, and psds
         """
-
+        
         # unfold the background data into kernels
         sample_size = int(self.sample_length * self.hparams.sample_rate)
         stride = int(self.hparams.valid_stride * self.hparams.sample_rate)
@@ -637,23 +637,30 @@ class BaseAframeDataset(pl.LightningDataModule):
         signal_idx = signals.shape[-1] - int(
             self.waveform_sampler.right_pad * self.hparams.sample_rate
         )
-        max_start = int(signal_idx - self.left_pad_size)
+        max_start = int(
+            signal_idx - self.left_pad_size - self.filter_size // 2
+        )
+        
+        max_start = max(0, max_start)
+
         max_stop = max_start + kernel_size
         pad = max_stop - signals.size(-1)
-        if pad > 0:
-            signals = torch.nn.functional.pad(signals, [0, pad])
+        # if pad > 0:
+        #     signals = torch.nn.functional.pad(signals, [0, pad])
         # for making valid batches work for 1 view and merger to stay at 59.5s
 
-        # signals = torch.nn.functional.pad(signals, [int(1*self.hparams.sample_rate), 0])
+        signals = torch.nn.functional.pad(signals, [int(1*self.hparams.sample_rate), 0])
 
-        # Prevent division by zero if we want only
-        # a single validation view
-        if self.hparams.num_valid_views == 1:
-            step = 0
-        else:
-            step = kernel_size - self.left_pad_size - self.right_pad_size
-            step /= self.hparams.num_valid_views - 1
-
+        step = (
+            kernel_size
+            - self.left_pad_size
+            - self.right_pad_size
+            - self.filter_size
+        )
+        try:
+            step /= self.hparams.num_valid_views - 1 # protection against num_views = 1
+        except ZeroDivisionError:
+            pass
         X_inj = []
         for i in range(self.hparams.num_valid_views):
             start = max_start - int(i * step)

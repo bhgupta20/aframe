@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from typing import Callable
 
 from jsonargparse import ArgumentParser
@@ -15,6 +16,7 @@ def training_waveforms(
     reference_frequency: float,
     waveform_approximant: str,
     right_pad: float,
+    pool: int = None,
 ):
     """
     Generates random training waveforms polarizations from a
@@ -53,6 +55,10 @@ def training_waveforms(
         samples = convert_to_detector_frame(samples)
 
     params = BilbyParameterSet(**samples)
+    if pool:
+        ex = ProcessPoolExecutor(max_workers=pool)
+    else:
+        ex = None
     waveforms = WaveformPolarizationSet.from_parameters(
         params,
         minimum_frequency,
@@ -61,7 +67,10 @@ def training_waveforms(
         waveform_duration,
         waveform_approximant,
         right_pad,
+        ex=ex,
     )
+    if ex:
+        ex.shutdown()
     return waveforms
 
 

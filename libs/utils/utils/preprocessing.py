@@ -1,7 +1,7 @@
 from typing import Callable, Optional, Tuple
 
 import torch
-from ml4gw.transforms import SpectralDensity, Whiten
+from ml4gw.transforms import SpectralDensity, Whiten, Decimator
 from ml4gw.utils.slicing import unfold_windows
 
 Tensor = torch.Tensor
@@ -157,6 +157,77 @@ class BatchWhitener(torch.nn.Module):
         # the batch dimension after unfolding
         x = unfold_windows(whitened, self.kernel_size, self.stride_size)
         x = x.reshape(-1, num_channels, self.kernel_size)
+        if self.augmentor is not None:
+            x = self.augmentor(x)
+
+        if self.return_whitened:
+            return x, whitened
+        return x
+
+class BatchWhitenerDecimate(torch.nn.Module):
+    """Calculate the PSDs and whiten an entire batch of kernels at once"""
+
+    def __init__(
+        self,
+        kernel_length: float,
+        sample_rate: float,
+        inference_sampling_rate: float,
+        batch_size: int,
+        fduration: float,
+        fftlength: float,
+        augmentor: Optional[Callable] = None,
+        highpass: Optional[float] = None,
+        lowpass: Optional[float] = None,
+        return_whitened: bool = False,
+    ) -> None:
+        super().__init__()
+        self.stride_size = int(sample_rate / inference_sampling_rate)
+        self.kernel_size = int(kernel_length * sample_rate)
+        self.augmentor = augmentor
+        self.return_whitened = return_whitened
+        self.decimator = Decimator(sample_rate=sample_rate, schedule=torch.tensor([[0, 40, 256], [40, 58, 512], [58, 60, 2048]]))
+
+        # do foreground length calculation in units of samples,
+        # then convert back to length to guard for intification
+        strides = (batch_size - 1) * self.stride_size
+        fsize = int(fduration * sample_rate)
+        size = strides + self.kernel_size + fsize
+        length = size / sample_rate
+        self.psd_estimator = PsdEstimator(
+            length,
+            sample_rate,
+            fftlength=fftlength,
+            overlap=None,
+            average="median",
+            fast=highpass is not None,
+        )
+        self.whitener = Whiten(fduration, sample_rate, highpass, lowpass)
+
+    def forward(self, x: Tensor) -> Tensor:
+        # Get the number of channels so we know how to
+        # reshape `x` appropriately after unfolding to
+        # ensure we have (batch, channels, time) shape
+        if x.ndim == 3:
+            num_channels = x.size(1)
+        elif x.ndim == 2:
+            num_channels = x.size(0)
+        else:
+            raise ValueError(
+                "Expected input to be either 2 or 3 dimensional, "
+                "but found shape {}".format(x.shape)
+            )
+
+        x, psd = self.psd_estimator(x)
+        whitened = self.whitener(x.double(), psd)
+
+        # unfold x and then put it into the expected shape.
+        # Note that if x has both signal and background
+        # batch elements, they will be interleaved along
+        # the batch dimension after unfolding
+        x = unfold_windows(whitened, self.kernel_size, self.stride_size)
+        x = x.reshape(-1, num_channels, self.kernel_size)
+        x = self.decimator(x)
+        
         if self.augmentor is not None:
             x = self.augmentor(x)
 

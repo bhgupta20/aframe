@@ -163,7 +163,7 @@ class BaseAframeDataset(pl.LightningDataModule):
         waveform_prob: float = 1,
         left_pad: float = 0,
         right_pad: float = 0,
-        schedule: Optional[List[List[int]]] = None,
+        schedule: Optional[list[list[int]]] = None,
         fftlength: Optional[float] = None,
         highpass: Optional[float] = None,
         lowpass: Optional[float] = None,
@@ -369,8 +369,7 @@ class BaseAframeDataset(pl.LightningDataModule):
         right_pad = max(signal_stop - waveforms.shape[-1], 0)
 
         waveforms = torch.nn.functional.pad(waveforms, [left_pad, right_pad])
-        waveforms = waveforms[..., signal_start:signal_stop]
-
+        waveforms = waveforms[..., max(signal_start, 0):signal_stop+left_pad]
         return waveforms
 
     def load_val_background(self, fnames: list[str]):
@@ -565,7 +564,7 @@ class BaseAframeDataset(pl.LightningDataModule):
         Returns:
             raw strain background kernels, injected kernels, and psds
         """
-
+        
         # unfold the background data into kernels
         sample_size = int(self.sample_length * self.hparams.sample_rate)
         stride = int(self.hparams.valid_stride * self.hparams.sample_rate)
@@ -594,10 +593,16 @@ class BaseAframeDataset(pl.LightningDataModule):
         max_start = int(
             signal_idx - self.left_pad_size - self.filter_size // 2
         )
+        
+        max_start = max(0, max_start)
+
         max_stop = max_start + kernel_size
         pad = max_stop - signals.size(-1)
-        if pad > 0:
-            signals = torch.nn.functional.pad(signals, [0, pad])
+        # if pad > 0:
+        #     signals = torch.nn.functional.pad(signals, [0, pad])
+        # for making valid batches work for 1 view and merger to stay at 59.5s
+
+        signals = torch.nn.functional.pad(signals, [int(1*self.hparams.sample_rate), 0])
 
         step = (
             kernel_size
@@ -605,7 +610,10 @@ class BaseAframeDataset(pl.LightningDataModule):
             - self.right_pad_size
             - self.filter_size
         )
-        step /= self.hparams.num_valid_views - 1
+        try:
+            step /= self.hparams.num_valid_views - 1 # protection against num_views = 1
+        except ZeroDivisionError:
+            pass
         X_inj = []
         for i in range(self.hparams.num_valid_views):
             start = max_start - int(i * step)

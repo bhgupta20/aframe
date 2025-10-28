@@ -1,3 +1,5 @@
+from tqdm import tqdm
+
 from concurrent.futures import Executor, as_completed
 from dataclasses import dataclass, make_dataclass
 from typing import Dict, List, Optional
@@ -427,13 +429,13 @@ class WaveformPolarizationSet(InjectionMetadata, BilbyParameterSet):
         param_list = transpose(lal_params.generation_params)
         # give flexibility if we want to parallelize or not
         if ex is None:
-            for i, polars in enumerate(map(waveform_generator, param_list)):
+            for i, polars in tqdm(enumerate(map(waveform_generator, param_list))):
                 for key, value in polars.items():
                     polarizations[key][i] = value
         else:
-            futures = ex.map(waveform_generator, param_list)
-            idx_map = dict(zip(futures, len(futures)))
-            for f in as_completed(futures):
+            futures = [ex.submit(waveform_generator, p) for p in param_list]
+            idx_map = {f: i for i, f in enumerate(futures)}
+            for f in tqdm(as_completed(futures), total=len(futures)):
                 i = idx_map.pop(f)
                 polars = f.result()
                 for key, value in polars.items():

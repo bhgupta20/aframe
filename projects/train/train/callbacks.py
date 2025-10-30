@@ -39,10 +39,13 @@ class ModelCheckpoint(pl.callbacks.ModelCheckpoint):
     def on_train_end(self, trainer, pl_module):
         torch.cuda.empty_cache()
         module = pl_module.__class__.load_from_checkpoint(
-            self.best_model_path, arch=pl_module.model, metric=pl_module.metric
+            self.best_model_path, arch=pl_module.model, metric=pl_module.metric3
         )
+        self._save_pt(trainer, pl_module, module)
 
+    def _save_pt(self, trainer, pl_module, module) -> None:
         device = pl_module.device
+        epoch = trainer.current_epoch
         # Handle the case of loading training waveforms from disk
         if trainer.datamodule.waveforms_from_disk:
             [X], waveforms = next(iter(trainer.train_dataloader))
@@ -57,22 +60,36 @@ class ModelCheckpoint(pl.callbacks.ModelCheckpoint):
             X = tuple(i.cpu() for i in X)
         else:
             X = X.cpu()
-        trace = torch.jit.trace(module.model.to("cpu"), X)
+
+        model_copy = module.model.to("cpu").eval()  # make a lightweight copy
+        with torch.no_grad():
+            trace = torch.jit.trace(model_copy, X)
+        del model_copy
 
         save_dir = trainer.logger.save_dir
         if save_dir.startswith("s3://"):
             s3 = s3fs.S3FileSystem()
-            with s3.open(f"{save_dir}/model.pt", "wb") as f:
+            with s3.open(f"{save_dir}/model-{epoch}.pt", "wb") as f:
                 torch.jit.save(trace, f)
 
-            s3.copy(self.best_model_path, f"{save_dir}/best.ckpt")
+            s3.copy(self.best_model_path, f"{save_dir}/best-{epoch}.ckpt")
         else:
-            with open(os.path.join(save_dir, "model.pt"), "wb") as f:
+            with open(os.path.join(save_dir, f"model-{epoch}.pt"), "wb") as f:
                 torch.jit.save(trace, f)
             shutil.copy(
-                self.best_model_path, os.path.join(save_dir, "best.ckpt")
+                self.best_model_path, os.path.join(save_dir, f"best-{epoch}.ckpt")
             )
 
+        pl_module.model.to(device)
+        pl_module.model.train(pl_module.training)
+        
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        super().on_train_epoch_end(trainer, pl_module)
+        if trainer.current_epoch%200==0 and trainer.current_epoch != 0:
+            torch.cuda.empty_cache()
+            module = pl_module.__class__.load_from_checkpoint(
+            self.best_model_path, arch=pl_module.model, metric=pl_module.metric3)
+            self._save_pt(trainer, pl_module, module)
 
 class SaveAugmentedBatch(Callback):
     def on_train_start(self, trainer, pl_module):

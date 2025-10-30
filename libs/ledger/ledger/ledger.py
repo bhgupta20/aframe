@@ -198,9 +198,9 @@ class Ledger:
         return cls(**kwargs)
 
     @classmethod
-    def read(cls, fname: PATH):
+    def read(cls, fname: PATH, idx: Optional[np.ndarray] = None):
         with h5py.File(fname, "r") as f:
-            return cls._load_with_idx(f, None)
+            return cls._load_with_idx(f, idx)
 
     @classmethod
     def sample_from_file(cls, fname: PATH, N: int, replace: bool = False):

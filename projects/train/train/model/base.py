@@ -35,6 +35,9 @@ class AframeBase(pl.LightningModule):
         self,
         arch: Architecture,
         metric: TimeSlideAUROC,
+        metric1: TimeSlideAUROC,
+        metric2: TimeSlideAUROC,
+        metric3: TimeSlideAUROC,
         learning_rate: float,
         pct_lr_ramp: float,
         weight_decay: float = 0.0,
@@ -45,6 +48,9 @@ class AframeBase(pl.LightningModule):
         # our hyperparameters to our logdir;
         self.model = arch
         self.metric = metric
+        self.metric1 = metric1
+        self.metric2 = metric2
+        self.metric3 = metric3
         self.verbose = verbose
         self._logger = self.get_logger()
         self.save_hyperparameters(ignore=["arch", "metric"])

@@ -1,5 +1,6 @@
 import torch
 from architectures.supervised import SupervisedArchitecture
+from typing import Union
 
 from train.model.base import AframeBase
 
@@ -70,6 +71,84 @@ class SupervisedMultiModalAframe(SupervisedAframe):
             sync_dist=True,
         )
 
+class SupervisedTimeSpectrogramAframe(SupervisedAframe):
+    def __init__(self, arch: SupervisedArchitecture, *args, **kwargs) -> None:
+        super().__init__(arch, *args, **kwargs)
+
+    def forward(self, X, X_spec):
+        return self.model(X, X_spec)
+
+    def score(self, X, X_spec):
+        return self(X, X_spec)
+
+    def train_step(
+            self, batch: tuple[tuple[Tensor, Tensor], Tensor]
+            ) -> Union[Tensor, dict[str, Tensor]]:
+        (X, X_spec), y = batch
+        y_hat = self(X, X_spec)
+        loss_X = torch.nn.functional.binary_cross_entropy_with_logits(y_hat[0], y)
+        loss_X_spec = torch.nn.functional.binary_cross_entropy_with_logits(y_hat[1], y)
+        return {
+            "loss_X": loss_X, 
+            "loss_X_spec": loss_X_spec,
+            }
+    
+    def compute_loss_fn(self, **loss):
+        return 0.7 * loss["loss_X_spec"] + 0.3 * loss["loss_X"]
+
+    def validation_step(self, batch, _) -> None:
+        shift, (X_bg, X_bg_spec), (X_fg, X_fg_spec) = batch
+
+        y_bg_X, y_bg_spec = self.score(X_bg, X_bg_spec)
+        y_bg = (y_bg_X + y_bg_spec)/2
+
+        # compute predictions over multiple views of
+        # each injection and use their average as our
+        # prediction
+        
+        num_views, batch, *shape = X_fg.shape
+        X_fg = X_fg.view(num_views * batch, *shape)
+        num_views, batch, *shape = X_fg_spec.shape
+        X_fg_spec = X_fg_spec.view(num_views * batch, *shape)
+
+        y_fg_X, y_fg_spec = self.score(X_fg, X_fg_spec)
+        y_fg_X = y_fg_X.view(num_views, batch).mean(0)
+        y_fg_spec = y_fg_spec.view(num_views, batch).mean(0)
+        y_fg = (y_fg_X + y_fg_spec) / 2
+
+        # include the shift associated with this data
+        # in our outputs to reconstruct background
+        # timeseries at aggregation time
+        self.metric1.update(shift, y_bg_X, y_fg_X)
+        self.metric2.update(shift, y_bg_spec, y_fg_spec)
+        self.metric3.update(shift, y_bg, y_fg)
+
+        # lightning will take care of updating then
+        # computing the metric at the end of the
+        # validation epoch
+        self.log(
+            "valid_auroc_X",
+            self.metric1,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        self.log(
+            "valid_auroc_X_spec",
+            self.metric2,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        self.log(
+            "valid_auroc_avg",
+            self.metric3,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
 class SupervisedAframeS4(SupervisedAframe):
     def __init__(self, arch: SupervisedArchitecture, *args, **kwargs) -> None:

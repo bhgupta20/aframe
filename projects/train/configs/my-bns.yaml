@@ -10,11 +10,12 @@ model:
   init_args:
     # architecture
     arch:
-      class_path: architectures.supervised.SupervisedSpectrogramDomainResNet
+      class_path: architectures.supervised.SupervisedTimeDomainResNet
       init_args:
-        layers: [3, 4, 6, 3]
+        layers: [4, 4, 4, 3]
+        kernel_size: 25
         norm_layer:
-          class_path: ml4gw.nn.norm.GroupNorm2DGetter
+          class_path: ml4gw.nn.norm.GroupNorm1DGetter
           init_args:
             groups: 16
     metric:
@@ -25,64 +26,59 @@ model:
 
     # optimization params
     weight_decay: 0.0
-    learning_rate: 0.000585
+    learning_rate: 0.0034
     pct_lr_ramp: 0.115
+    # early stop
 data:
-  class_path: train.data.supervised.SpectrogramDomainSupervisedAframeDataset
+  class_path: train.data.supervised.TimeDomainSupervisedAframeDataset
   init_args:
     # loading args
-    data_dir: '/work/nvme/bcse/DATADIR/o3b-data-hlv/online/train'
+    # data_dir: ${oc.env:AFRAME_DATADIR}
+    data_dir: '/work/hdd/bcse/amplfi-data-dir-O3b-HLV_small/train/'
     ifos: [H1,L1]
     sample_rate: 2048
     batches_per_epoch: 200
-    num_files_per_batch: 10
-    chunk_size: 1000
-    chunks_per_epoch: 20
+    num_files_per_batch: 2
+    chunk_size: 150
+    chunks_per_epoch: 10
     # preprocessing args
-    batch_size: 700
-    kernel_length: 8
-    psd_length: 8
+    batch_size: 300
+    kernel_length: 60
+    psd_length: 20
     fduration: 2
     # highpass: 
     # lowpass: 
     fftlength: 2
+
     # augmentation args
     waveform_prob: 0.277
     swap_prob: 0.014
     mute_prob: 0.055
-    left_pad: 0.25
-    right_pad: 0.05
+    left_pad: 59.4
+    right_pad: 0.4
+    schedule: [[0, 40, 256], [40, 58, 512], [58, 60, 2048]]
     snr_sampler:
       class_path: ml4gw.distributions.PowerLaw
       init_args: 
         minimum: 8
         maximum: 100
         index: -3
-    spectrogram_shape: [64, 128]
-    q: 45.6
-    waveform_sampler:
-      class_path: train.data.waveforms.WaveformLoader
-      init_args:
-        training_waveform_path: /work/hdd/bcse/bgupta1/aframe/data/train/train-waveforms-10k-25s/waveforms.hdf5
-        val_waveform_file: /work/hdd/bcse/bgupta1/aframe/data/train/val-waveforms-10k-25s/val_waveforms_6k.hdf5
-    dec: 
-      class_path: ml4gw.distributions.Cosine
-    psi: 
-      class_path: torch.distributions.Uniform
-      init_args:
-        low: 0
-        high: 3.14159
-        validate_args: false
-    phi: 
-      class_path: torch.distributions.Uniform
-      init_args:
-        low: 0
-        high: 6.28318
-        validate_args: false
+      # uncomment below and comment above for 
+      # snr scheduling
+       
+      # class_path: train.augmentations.SnrSampler
+      # init_args:
+         # max_min_snr: 12
+         # min_min_snr: 4
+         # max_snr: 100
+         # alpha: -3
+         # decay_steps: 989
     # validation args
+    valid_frac: 0.25
     valid_stride: 0.5
-    num_valid_views: 5
-    valid_livetime: 57600 
+    num_valid_views: 1
+    valid_livetime: 1000 
+
 trainer:
   # by default, use a local CSV logger.
   # note that you can use multiple loggers!
@@ -91,9 +87,9 @@ trainer:
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger
       init_args:
-        save_dir: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/old-aframe
+        save_dir: /work/hdd/bcse/bgupta1/aframe/results
         name: "test-2"
-        version: "tmp"
+        version: "tmp-2"
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
@@ -112,9 +108,6 @@ trainer:
         save_last: true
         auto_insert_metric_name: false
     - class_path: train.callbacks.SaveAugmentedBatch
-    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
-      init_args:
-        logging_interval: "step"
   # uncomment below if you want to profile
   # profiler:
     # class_path: lightning.pytorch.profilers.PyTorchProfiler
@@ -124,7 +117,7 @@ trainer:
   # strategy: set to ddp if len(devices) > 1
   #precision: 16-mixed
   accelerator: auto
-  max_epochs: 600
+  max_epochs: 1000
   check_val_every_n_epoch: 1
   log_every_n_steps: 20
   enable_progress_bar: true

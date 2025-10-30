@@ -6,14 +6,23 @@
 # and specify a path to the desired checkpoint
 # ckpt_path: ""
 model:
-  class_path: train.model.SupervisedAframe
+  class_path: train.model.SupervisedTimeSpectrogramAframe
   init_args:
     # architecture
     arch:
-      class_path: architectures.supervised.SupervisedSpectrogramDomainResNet
+      class_path: architectures.supervised.SupervisedTimeSpectrogramResNet
       init_args:
-        layers: [3, 4, 6, 3]
-        norm_layer:
+        time_layers: [4, 4, 4, 3]
+        time_kernel_size: 25
+        time_classes: 1
+        time_norm_layer:
+          class_path: ml4gw.nn.norm.GroupNorm1DGetter
+          init_args:
+            groups: 16
+        spec_layers: [3, 4, 6, 3]
+        spec_kernel_size: 3
+        spec_classes: 1
+        spec_norm_layer:
           class_path: ml4gw.nn.norm.GroupNorm2DGetter
           init_args:
             groups: 16
@@ -22,13 +31,29 @@ model:
       init_args:
         max_fpr: 1e-3
         pool_length: 8
+    metric1:
+      class_path: train.metrics.TimeSlideAUROC
+      init_args:
+        max_fpr: 1e-3
+        pool_length: 8
+    metric2:
+      class_path: train.metrics.TimeSlideAUROC
+      init_args:
+        max_fpr: 1e-3
+        pool_length: 8
+    metric3:
+      class_path: train.metrics.TimeSlideAUROC
+      init_args:
+        max_fpr: 1e-3
+        pool_length: 8
 
     # optimization params
     weight_decay: 0.0
-    learning_rate: 0.000585
+    learning_rate: 0.0034
     pct_lr_ramp: 0.115
+    # early stop
 data:
-  class_path: train.data.supervised.SpectrogramDomainSupervisedAframeDataset
+  class_path: train.data.supervised.TimeSpectrogramDomainSupervisedAframeDataset
   init_args:
     # loading args
     data_dir: '/work/nvme/bcse/DATADIR/o3b-data-hlv/online/train'
@@ -36,30 +61,29 @@ data:
     sample_rate: 2048
     batches_per_epoch: 200
     num_files_per_batch: 10
-    chunk_size: 1000
-    chunks_per_epoch: 20
+    chunk_size: 1000 # number of waveforms in the chunk #training waveforms
+    chunks_per_epoch: 20 # how many chunks we load in each epoch #training waveforms
     # preprocessing args
-    batch_size: 700
-    kernel_length: 8
-    psd_length: 8
+    batch_size: 400 # maybe change 
+    kernel_length: 20
+    psd_length: 20
     fduration: 2
-    # highpass: 
-    # lowpass: 
-    fftlength: 2
     # augmentation args
     waveform_prob: 0.277
     swap_prob: 0.014
     mute_prob: 0.055
-    left_pad: 0.25
-    right_pad: 0.05
+    left_pad: 18.8
+    right_pad: 0.2
+    # highpass: 
+    # lowpass: 
+    fftlength: 2
+    schedule: [[0, 16, 512], [12, 20, 2048]]
     snr_sampler:
       class_path: ml4gw.distributions.PowerLaw
       init_args: 
         minimum: 8
         maximum: 100
         index: -3
-    spectrogram_shape: [64, 128]
-    q: 45.6
     waveform_sampler:
       class_path: train.data.waveforms.WaveformLoader
       init_args:
@@ -82,7 +106,8 @@ data:
     # validation args
     valid_stride: 0.5
     num_valid_views: 5
-    valid_livetime: 57600 
+    valid_livetime: 57600 # how much total length of background (in seconds) to use for validation
+
 trainer:
   # by default, use a local CSV logger.
   # note that you can use multiple loggers!
@@ -91,14 +116,14 @@ trainer:
   logger:
     - class_path: lightning.pytorch.loggers.TensorBoardLogger
       init_args:
-        save_dir: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/old-aframe
-        name: "test-2"
+        save_dir: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/overlap
+        name: "test-1"
         version: "tmp"
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        monitor: "valid_auroc"
+        monitor: "valid_auroc_avg"
         mode: "max"
         patience: 500
     # custom model checkpoint for saving and
@@ -106,7 +131,7 @@ trainer:
     # that will be used for downstream export
     - class_path: train.callbacks.ModelCheckpoint
       init_args:
-        monitor: "valid_auroc"
+        monitor: "valid_auroc_avg"
         mode: "max"
         save_top_k: 1
         save_last: true

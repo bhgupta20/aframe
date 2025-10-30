@@ -73,7 +73,7 @@ class TimeDomainSupervisedDecimateAframeDataset(SupervisedAframeDataset):
             waveforms = self.slice_waveforms(waveforms)
             # if we're training, perform random augmentations
             # on input data and use it to impact labels
-            batch = self.augment(X, waveforms)
+            batch = self.inject(X, waveforms)
         elif self.trainer.validating or self.trainer.sanity_checking:
             # If we're in validation mode but we're not validating
             # on the local device, the relevant tensors will be
@@ -101,7 +101,7 @@ class TimeDomainSupervisedDecimateAframeDataset(SupervisedAframeDataset):
         """
         return batch
 
-    def augment(self, X, waveforms):
+    def inject(self, X, waveforms):
         X, y, psds = super().augment(X, waveforms)
         X = self.whitener(X, psds)
         if self.decimator is not None:

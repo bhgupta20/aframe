@@ -40,6 +40,21 @@ class AframeCLI(LightningCLI):
         )
 
         parser.link_arguments(
+            "data.init_args.valid_stride",
+            "model.init_args.metric1.init_args.stride",
+        )
+
+        parser.link_arguments(
+            "data.init_args.valid_stride",
+            "model.init_args.metric2.init_args.stride",
+        )
+
+        parser.link_arguments(
+            "data.init_args.valid_stride",
+            "model.init_args.metric3.init_args.stride",
+        )
+
+        parser.link_arguments(
             "data.init_args.sample_rate",
             "data.init_args.waveform_sampler.init_args.sample_rate",
             apply_on="parse",

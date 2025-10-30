@@ -1,6 +1,7 @@
 import torch
 from ml4gw.spectral import truncate_inverse_power_spectrum
 from ml4gw.transforms.qtransform import SingleQTransform
+from ml4gw.transforms.decimator import Decimator
 
 from train.data.base import Tensor
 from train.data.supervised.supervised import SupervisedAframeDataset
@@ -18,7 +19,7 @@ class SpectrogramDomainSupervisedAframeDataset(SupervisedAframeDataset):
         super().build_transforms(*args, **kwargs)
         self.qtransform = SingleQTransform(
             duration=self.hparams.kernel_length,
-            sample_rate=self.sample_rate,
+            sample_rate=self.hparams.sample_rate,
             q=self.q,
             spectrogram_shape=self.spectrogram_shape,
         )
@@ -126,3 +127,76 @@ class FrequencyDomainSupervisedAframeDataset(SupervisedAframeDataset):
         # split into real and imaginary parts
         X = torch.cat([X.real, X.imag], dim=1)
         return X, y
+
+class TimeSpectrogramDomainSupervisedAframeDataset(SupervisedAframeDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.hparams.schedule is not None:
+            schedule = self.hparams.schedule
+            self.schedule = torch.tensor(schedule, dtype=torch.int)
+            self.decimator = Decimator(sample_rate=self.hparams.sample_rate, schedule=self.schedule, split=True)
+
+        # self.qtransform0 = SingleQTransform(
+        #     duration=40,
+        #     sample_rate=256,
+        #     q=45.6,
+        #     spectrogram_shape=[64, 128],
+        # )   
+
+        self.qtransform1 = SingleQTransform(
+            duration=16,
+            sample_rate=512,
+            q=45.6,
+            spectrogram_shape=[64, 128],
+        )
+
+        # self.qtransform2 = SingleQTransform(
+        #     duration=4,
+        #     sample_rate=2048,
+        #     q=45.6,
+        #     spectrogram_shape=[64, 128],
+        # )
+
+    def build_val_batches(self, background, signals):
+        X_bg, X_inj, psds = super().build_val_batches(background, signals)
+        X_bg = self.whitener(X_bg, psds)
+        # whiten each view of injections
+        X_fg = []
+        for inj in X_inj:
+            inj = self.whitener(inj, psds)
+            X_fg.append(inj)
+
+        X_fg = torch.stack(X_fg)
+
+        if self.decimator is not None:
+            X_bg = self.decimator(X_bg)
+            X_fg = self.decimator(X_fg)
+
+
+        X_bg_spec1 = torch.nan_to_num(self.qtransform1(X_bg[0]))
+
+        X_fg_spec1 = []
+        for i in range(X_fg[0].shape[0]):
+            qt1 = torch.nan_to_num(self.qtransform1(X_fg[0][i]))
+            X_fg_spec1.append(qt1)
+
+        X_fg_spec1 = torch.stack(X_fg_spec1)
+
+        X_bg_spec = X_bg_spec1
+        X_fg_spec = X_fg_spec1
+
+        return (X_bg[1], X_bg_spec), (X_fg[1], X_fg_spec)
+
+    def inject(self, X, waveforms=None):
+        X, y, psds = super().inject(X, waveforms)
+        X = self.whitener(X, psds)
+        if self.decimator is not None:
+            X = self.decimator(X)
+
+        X_spec1 = torch.nan_to_num(self.qtransform1(X[0]))
+        
+        X_spec = X_spec1
+
+        return (X[1], X_spec), y
+    

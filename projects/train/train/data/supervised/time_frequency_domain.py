@@ -135,14 +135,7 @@ class TimeSpectrogramDomainSupervisedAframeDataset(SupervisedAframeDataset):
         if self.hparams.schedule is not None:
             schedule = self.hparams.schedule
             self.schedule = torch.tensor(schedule, dtype=torch.int)
-            self.decimator = Decimator(sample_rate=self.hparams.sample_rate, schedule=self.schedule, split=True)
-
-        # self.qtransform0 = SingleQTransform(
-        #     duration=40,
-        #     sample_rate=256,
-        #     q=45.6,
-        #     spectrogram_shape=[64, 128],
-        # )   
+            self.decimator = Decimator(sample_rate=self.hparams.sample_rate, schedule=self.schedule, split=True)  
 
         self.qtransform1 = SingleQTransform(
             duration=16,
@@ -150,14 +143,7 @@ class TimeSpectrogramDomainSupervisedAframeDataset(SupervisedAframeDataset):
             q=45.6,
             spectrogram_shape=[64, 128],
         )
-
-        # self.qtransform2 = SingleQTransform(
-        #     duration=4,
-        #     sample_rate=2048,
-        #     q=45.6,
-        #     spectrogram_shape=[64, 128],
-        # )
-
+        
     def build_val_batches(self, background, signals):
         X_bg, X_inj, psds = super().build_val_batches(background, signals)
         X_bg = self.whitener(X_bg, psds)

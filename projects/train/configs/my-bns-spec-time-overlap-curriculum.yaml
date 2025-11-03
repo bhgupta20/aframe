@@ -86,6 +86,12 @@ data:
          max_snr: 100
          alpha: -3
          decay_steps: 1000
+    # snr_sampler:
+    #   class_path: ml4gw.distributions.PowerLaw
+    #   init_args: 
+    #     minimum: 8
+    #     maximum: 100
+    #     index: -3
     waveform_sampler:
       class_path: train.data.waveforms.WaveformLoader
       init_args:
@@ -120,7 +126,7 @@ trainer:
       init_args:
         save_dir: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/overlap-curriculum
         name: "test-1"
-        version: "tmp"
+        version: "tm-1"
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.EarlyStopping

@@ -1,0 +1,64 @@
+# configuration file to be used with `lightray`
+# for running hyper-paramter runing with ray
+# see https://github.com/EthanMarx/lightray/
+
+# ray.tune.TuneConfig
+tune_config:
+  mode: "max"
+  metric: "valid_auroc_X"
+  scheduler:
+    class_path: ray.tune.schedulers.ASHAScheduler
+    init_args:
+      max_t: 80
+      grace_period: 5
+      reduction_factor: 2
+  num_samples: 425
+  reuse_actors: true
+
+# ray.train.RunConfig
+run_config:
+  name: "time-spec-bns-tune"
+  storage_path: ${oc.env:AFRAME_OUTDIR}
+  failure_config:
+    class_path: ray.train.FailureConfig
+    init_args:
+      max_failures: 1
+  checkpoint_config:
+    class_path: ray.train.CheckpointConfig
+    init_args:
+      num_to_keep: 2
+      checkpoint_score_attribute: "valid_auroc_X"
+      checkpoint_score_order: "max"
+  verbose: null
+
+# ray.train.SyncConfig
+sync_config:
+  sync_period: 7200
+
+# ray.init
+ray_init:
+  address: null
+
+# tune.Tune.param_space
+param_space:
+  model.learning_rate: tune.loguniform(1e-5, 1e-3)
+  model.weight_decay: tune.loguniform(1e-5, 1e-3)
+  model.arch.time_layers: tune.choice([[3, 4, 6, 3], [4, 4, 4, 3], [4, 6, 6, 3]])
+  model.arch.spec_layers: tune.choice([[3, 3, 3], [3, 3, 2, 2], [3, 4, 6, 3]])
+  model.arch.time_kernel_size: tune.choice([5, 15, 25])
+  model.arch.spec_kernel_size: tune.choice([3, 5])
+  data.snr_sampler.decay_steps: tune.choice([200, 400, 600, 800, 1000])
+
+# ray.tune.TuneCallback
+tune_callback:
+  class_path: lightray.callbacks.LightRayReportCheckpointCallback
+  init_args:
+    'on': "validation_end"
+    checkpoint_every: 10
+
+# resources per trial
+cpus_per_trial: 6
+gpus_per_trial: 1
+
+# lightning cli
+lightning_cli_cls: train.cli.AframeCLI

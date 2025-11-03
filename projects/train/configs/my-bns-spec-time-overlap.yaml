@@ -118,7 +118,7 @@ trainer:
       init_args:
         save_dir: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/overlap
         name: "test-1"
-        version: "tmp"
+        version: "tmp-1"
 
   callbacks:
     - class_path: lightning.pytorch.callbacks.EarlyStopping

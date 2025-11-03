@@ -101,8 +101,8 @@ class TimeDomainSupervisedDecimateAframeDataset(SupervisedAframeDataset):
         """
         return batch
 
-    def augment(self, X, waveforms):
-        X, y, psds = super().augment(X, waveforms)
+    def inject(self, X, waveforms):
+        X, y, psds = super().inject(X, waveforms)
         X = self.whitener(X, psds)
         if self.decimator is not None:
             X = self.decimator(X)

@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Dict, List, Tuple, Union
@@ -25,11 +26,12 @@ def rejection_sample(
     sample_rate: float,
     waveform_duration: float,
     waveform_approximant: str,
-    coalescence_time: float,
+    right_pad: float,
     highpass: float,
-    lowpass: float,
     snr_threshold: float,
     psd: Union[Path, torch.Tensor],
+    lowpass: float = None,
+    pool: int = None,
 ) -> Tuple[ResponseSetFields, InjectionParameterSet]:
     # get the detector tensors and vertices
     # for projecting our waveforms
@@ -63,6 +65,10 @@ def rejection_sample(
         if num_signals == 1:
             params = {k: params[k] for k in prior.keys() if k in params}
 
+        if pool:
+            ex = ProcessPoolExecutor(max_workers=pool)
+        else:
+            ex = None
         polarization_set = WaveformPolarizationSet.from_parameters(
             BilbyParameterSet(**params),
             minimum_frequency,
@@ -70,8 +76,12 @@ def rejection_sample(
             sample_rate,
             waveform_duration,
             waveform_approximant,
-            coalescence_time,
+            right_pad,
+            ex=ex,
         )
+        if ex:
+            ex.shutdown()
+
         polarizations = {
             "cross": torch.Tensor(polarization_set.cross),
             "plus": torch.Tensor(polarization_set.plus),
@@ -145,7 +155,7 @@ def rejection_sample(
         idx += num_accepted
         num_signals -= num_accepted
 
-    parameters["coalescence_time"] = coalescence_time
+    parameters["right_pad"] = right_pad
     parameters["sample_rate"] = sample_rate
     parameters["duration"] = waveform_duration
     parameters["num_injections"] = num_injections

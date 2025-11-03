@@ -1,0 +1,33 @@
+# commented args (i.e. comments with colon at end 
+# to illustrate a value needs to be filled out)
+# represent values filled out
+# by the export task at run time. To build a functional
+# standalone config, add these in yourself.
+
+logfile: /work/hdd/bcse/bgupta1/aframe/results/export/export.log
+weights: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/curriculum-1/model-300.pt
+batch_file: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/curriculum-1/batch.hdf5
+repository_directory: /work/hdd/bcse/bgupta1/aframe/results/export/model_repo
+num_ifos: 2
+kernel_length: 20.0
+inference_sampling_rate: 8
+sample_rate: 2048
+batch_size: 128
+fduration: 2
+psd_length: 20
+preprocessor:
+  class_path: utils.preprocessing.BatchWhitenerTimeSpecDecimate
+  init_args:
+    kernel_length: 20.0
+    sample_rate: 2048
+    inference_sampling_rate: 8
+    batch_size: 128
+    schedule: [[0, 16, 512], [16, 20, 2048]]
+    fduration: 2
+    fftlength: 2
+    highpass: 20.0
+streams_per_gpu: 6
+aframe_instances: 1
+platform: TENSORRT
+clean: true
+verbose: true

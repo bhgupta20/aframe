@@ -16,6 +16,7 @@ dependencies = [
     "nvidia-cudnn-cu11==8.9.6.50",
     "tensorrt==8.5.2.2",
     "urllib3>=1.25.4,<1.27",
+    "torch<2.7",
 ]
 
 [project.scripts]

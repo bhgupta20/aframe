@@ -113,6 +113,8 @@ class Postprocessor:
         # just return an empty event set
         if y is None:
             return EventSet()
+        if y.ndim > 1:
+            y = (y[0]+y[1])/2
         y = y[self.offset :]
         y = self.integrate(y)
         y = self.cluster(y)

@@ -262,7 +262,7 @@ class BatchWhitenerTimeSpecDecimate(torch.nn.Module):
         self.augmentor = augmentor
         self.return_whitened = return_whitened
         self.schedule = torch.tensor(schedule, dtype=torch.int)
-        self.decimator = Decimator(sample_rate=sample_rate, schedule=self.schedule, split=True)
+        self.decimator = Decimator(sample_rate=sample_rate, schedule=self.schedule)
         self.qtransform = SingleQTransform(duration=16,sample_rate=512,q=45.6,spectrogram_shape=[64, 128],)
 
         # do foreground length calculation in units of samples,
@@ -304,7 +304,7 @@ class BatchWhitenerTimeSpecDecimate(torch.nn.Module):
         # the batch dimension after unfolding
         x = unfold_windows(whitened, self.kernel_size, self.stride_size)
         x = x.reshape(-1, num_channels, self.kernel_size)
-        x = self.decimator(x)
+        x = self.decimator(x, split=True)
         spec = self.qtransform(x[0])
 
         if self.return_whitened:

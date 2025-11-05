@@ -154,11 +154,11 @@ def export(
         aframe.config.optimization.graph.level = -1
     elif platform == qv.Platform.TENSORRT:
         kwargs["use_fp16"] = False
-
+    # logging.info("Aframe config:\n{}".format(repo.models["aframe"].config))
     aframe.export_version(
         graph,
         input_shapes=input_shape_dict,
-        output_names=["discriminator"],
+        output_names=["discriminator_0", "discriminator_1"],
         **kwargs,
     )
 
@@ -191,7 +191,8 @@ def export(
 
         # export the ensemble model, which basically amounts
         # to writing its config and creating an empty version entry
-        ensemble.add_output(aframe.outputs["discriminator"])
+        ensemble.add_output(aframe.outputs["discriminator_0"])
+        ensemble.add_output(aframe.outputs["discriminator_1"])
         ensemble.export_version(None)
     else:
         # if there does already exist an ensemble by

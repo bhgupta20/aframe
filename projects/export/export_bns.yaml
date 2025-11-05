@@ -4,13 +4,13 @@
 # by the export task at run time. To build a functional
 # standalone config, add these in yourself.
 
-logfile: /work/hdd/bcse/bgupta1/aframe/results/export/export.log
-weights: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/curriculum-1/model-300.pt
-batch_file: /work/hdd/bcse/bgupta1/aframe/results/time-spec-test-2/curriculum-1/batch.hdf5
-repository_directory: /work/hdd/bcse/bgupta1/aframe/results/export/model_repo
+logfile: /home/bhavya.gupta/experiments/aframe/results/export/export.log
+weights: /home/bhavya.gupta/experiments/aframe/results/time-spec-test-2/curriculum-1/model-300.pt
+batch_file: /home/bhavya.gupta/experiments/aframe/results/time-spec-test-2/curriculum-1/batch.hdf5
+repository_directory: /home/bhavya.gupta/experiments/aframe/results/export/model_repo
 num_ifos: 2
 kernel_length: 20.0
-inference_sampling_rate: 8
+inference_sampling_rate: 10
 sample_rate: 2048
 batch_size: 128
 fduration: 2
@@ -20,7 +20,7 @@ preprocessor:
   init_args:
     kernel_length: 20.0
     sample_rate: 2048
-    inference_sampling_rate: 8
+    inference_sampling_rate: 10
     batch_size: 128
     schedule: [[0, 16, 512], [16, 20, 2048]]
     fduration: 2

@@ -115,7 +115,7 @@ class Sequence:
             seq_id = self.id + i
             self._started[seq_id] = False
             self._done[seq_id] = False
-            self._sequences[seq_id] = np.zeros(size)
+            self._sequences[seq_id] = None # np.zeros(size)
 
         # if there are no injections, we can mark
         # the injection sequence as started and done
@@ -224,7 +224,21 @@ class Sequence:
         # spot in the corresponding output array
         start = request_id * self.batch_size
         stop = (request_id + 1) * self.batch_size
-        self._sequences[sequence_id][start:stop] = y[:, 0]
+        if self._sequences[sequence_id] is None:
+            total = len(self) * self.batch_size
+            if isinstance(y, dict):
+            # two discriminators -> shape (T, 2)
+                self._sequences[sequence_id] = np.zeros((total, 2))
+            else:
+            # one discriminator -> shape (T,)
+                self._sequences[sequence_id] = np.zeros(total)
+        if isinstance(y, dict):
+            # two discriminators → keep both
+            y0 = y["discriminator_0"][:, 0]
+            y1 = y["discriminator_1"][:, 0]
+            self._sequences[sequence_id][start:stop] = np.stack([y0, y1], axis=1)
+        else:
+            self._sequences[sequence_id][start:stop] = y[:, 0]
 
         # indicate that the first response for
         # this sequence has returned, and possibly

@@ -1,23 +1,23 @@
 port: 5005
 app:
   init_args:
-    weights: ${oc.env:AFRAME_TRAIN_RUN_DIR}/model.pt
+    weights: ${oc.env:AFRAME_TRAIN_RUN_DIR}/model-300.pt
     background_dir: ${oc.env:AFRAME_TEST_BACKGROUND_DIR}
     waveforms_dir: ${oc.env:AFRAME_TEST_WAVEFORMS_DIR}
     results_dir: ${oc.env:AFRAME_RESULTS_DIR}
     fftlength: 2
     ifos: ["H1", "L1"]
-    mass_combos: [[35, 35], [35, 20], [20, 20], [20, 10]]
+    mass_combos: [[1.4, 1.4], [1.5, 1.5], [2.0, 2.0], [2.3, 2.3]]
     source_prior: priors.priors.end_o3_ratesandpops
-    kernel_length: 1.5
-    integration_length: 1.0
+    kernel_length: 20
+    integration_length: 0.25
     psd_length: 64
     highpass: 32
     lowpass: null
     batch_size: 128
     sample_rate: 2048
-    inference_sampling_rate: 4
-    fduration: 1
+    inference_sampling_rate: 10
+    fduration: 2
     valid_frac: 0.2
     device: "cuda:0"
     verbose: false

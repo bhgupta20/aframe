@@ -4,6 +4,7 @@ import numpy as np
 
 from ledger.events import EventSet
 
+# from ml4gw.utils.integrator import TopHatIntegrator, LeakyIntegrator
 
 class Postprocessor:
     def __init__(
@@ -64,10 +65,20 @@ class Postprocessor:
         integrated with 0s, so will have a lower magnitude
         than they technically should.
         """
-        window_size = self.integration_window_size
-        window = np.ones((window_size,)) / window_size
-        integrated = np.convolve(y, window, mode="full")
-        return integrated[: -window_size + 1]
+        # window_size = self.integration_window_size
+        # window = np.ones((window_size,)) / window_size
+        # integrated = np.convolve(y, window, mode="full")
+        # return integrated[: -window_size + 1]
+
+        s = 0.0
+        out = []
+        for e in y:
+            if e >= 0.9:
+                s += 1
+            else:
+                s = max(0.0, s - 0.5)
+            out.append(s)
+        return np.array(out)
 
     def cluster(self, y) -> EventSet:
         # initial our search index to be in the first
@@ -113,9 +124,16 @@ class Postprocessor:
         # just return an empty event set
         if y is None:
             return EventSet()
-        if y.ndim > 1:
-            y = (y[0]+y[1])/2
-        y = y[self.offset :]
+        # Two discriminators → average them
+        if y.ndim == 2:
+            # Hardcoding the use of timeseries scores for SV calculation
+            # y = 0.5 * (y[:, 0] + y[:, 1])
+            # y = y[:, 0]
+            y = 1 / (1 + np.exp(-y[:, 0]))
+        else:
+        # one discriminator, already shape (T,)
+            y = y
+        y = y[self.offset:]
         y = self.integrate(y)
         y = self.cluster(y)
         return y

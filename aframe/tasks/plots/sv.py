@@ -10,6 +10,9 @@ from aframe.parameters import PathParameter, load_prior
 from aframe.tasks.data.waveforms.testing import DeployTestingWaveforms
 from aframe.tasks.infer import Infer
 
+class _Path:
+    def __init__(self, path):
+        self.path = path
 
 class SensitiveVolume(AframeSingularityTask):
     """
@@ -39,11 +42,12 @@ class SensitiveVolume(AframeSingularityTask):
     def default_image(self):
         return "plots.sif"
 
-    def requires(self):
-        reqs = {}
-        reqs["ts"] = DeployTestingWaveforms.req(self)
-        reqs["infer"] = Infer.req(self)
-        return reqs
+    # def requires(self):
+    #     reqs = {}
+    #     reqs["ts"] = PathParameter('/home/bhavya.gupta/experiments/aframe/data/test/rejected-parameters.hdf5')
+    #     reqs["infer"] = {'foreground':PathParameter('/home/bhavya.gupta/experiments/aframe/infer/foreground.hdf5'), 
+    #                      'background':PathParameter('/home/bhavya.gupta/experiments/aframe/infer/background.hdf5')}
+    #     return reqs
 
     def output(self):
         data = os.path.join(self.output_dir, "sensitive_volume.h5")
@@ -55,9 +59,14 @@ class SensitiveVolume(AframeSingularityTask):
 
         from plots.legacy.main import main
 
-        foreground = self.input()["infer"]["foreground"]
-        background = self.input()["infer"]["background"]
-        rejected = self.input()["ts"][1].path
+        # foreground = self.input()["infer"]["foreground"]
+        # background = self.input()["infer"]["background"]
+        # rejected = self.input()["ts"]
+
+        foreground = _Path('/home/bhavya.gupta/experiments/aframe/infer/foreground.hdf5')
+        background = _Path('/home/bhavya.gupta/experiments/aframe/infer/background.hdf5')
+        rejected = '/home/bhavya.gupta/experiments/aframe/data/test/rejected-parameters.hdf5'
+
         source_prior = load_prior(self.source_prior)
         main(
             Path(background.path),

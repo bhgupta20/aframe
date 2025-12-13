@@ -2,6 +2,7 @@ import json
 import os
 import warnings
 from pathlib import Path
+from glob import glob
 
 import h5py
 import law
@@ -15,6 +16,11 @@ from aframe.config import paths
 from aframe.parameters import PathParameter
 from aframe.tasks import ExportLocal, TestingWaveforms
 from aframe.tasks.data.condor.workflows import StaticMemoryWorkflow
+
+
+class _Path:
+    def __init__(self, path):
+        self.path = path
 
 
 class InferParameters(law.Task):
@@ -37,7 +43,7 @@ class InferParameters(law.Task):
     zero_lag = luigi.BoolParameter(default="true")
     return_timeseries = luigi.BoolParameter(default="false")
     output_dir = PathParameter(default=paths().results_dir)
-    train_task = luigi.TaskParameter()
+    # train_task = luigi.TaskParameter()
 
 
 @inherits(InferParameters)
@@ -73,7 +79,7 @@ class InferBase(
                 "amount of data, and the aggregation process will be slow. It "
                 "is not recommended to save the output timeseries for long "
                 "timeslides or high inference rates",
-                stacklevel=2.0,
+                stacklevel=2,
             )
 
     @property
@@ -117,23 +123,26 @@ class InferBase(
 
     @property
     def background_fnames(self):
-        return self.workflow_input()["data"].collection.targets.values()
+        return  [
+            _Path(p) for p in 
+            glob('/home/bhavya.gupta/experiments/aframe/data/background_data/o3_dataset/test/background/*hdf5')]# self.workflow_input()["data"].collection.targets.values()
 
     @property
     def injection_set_fname(self):
-        return self.workflow_input()["waveforms"][0].path
+        return '/home/bhavya.gupta/experiments/aframe/data/test/waveforms.hdf5'
 
-    def workflow_requires(self):
-        reqs = {}
-        reqs["model_repository"] = ExportLocal.req(self)
-        testing_waveforms = TestingWaveforms.req(self)
-        fetch = testing_waveforms.requires().workflow_requires()[
-            "test_segments"
-        ]
-        reqs["data"] = fetch
-        reqs["waveforms"] = testing_waveforms
+    # def workflow_requires(self):
+    #     reqs = {}
+    #     # reqs["model_repository"] = ExportLocal.req(self)
+    #     # testing_waveforms = TestingWaveforms.req(self)
+    #     # fetch = testing_waveforms.requires().workflow_requires()[
+    #     #     "test_segments"
+    #     # ]
+    #     # reqs["data"] = fetch
+    #     # reqs["waveforms"] = testing_waveforms
+    #     # reqs['data'] = "abcd"
 
-        return reqs
+    #     return reqs
 
     def get_num_shifts(self):
         # calculate the number of shifts required
@@ -150,7 +159,7 @@ class InferBase(
 
     @law.dynamic_workflow_condition(cache_met_condition=True)
     def workflow_condition(self) -> bool:
-        return self.workflow_input()["data"].collection.exists()
+        return True # self.workflow_input()["data"].collection.exists()
 
     @workflow_condition.create_branch_map
     def create_branch_map(self):
@@ -244,7 +253,7 @@ class InferBase(
         if self.return_timeseries:
             background, foreground, background_ts, foreground_ts = outputs
             with h5py.File(self.timeseries_output, "w") as f:
-                f.attrs["t0"] = postprocessor.t0
+                f.attrs["t0"] = sequence.t0
                 f.attrs["shifts"] = postprocessor.shifts
                 f.create_dataset("background", data=background_ts)
                 if foreground_ts is None:

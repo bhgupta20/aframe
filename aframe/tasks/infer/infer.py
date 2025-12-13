@@ -18,6 +18,9 @@ from luigi.util import inherits
 from aframe.base import AframeSingularityTask
 from aframe.tasks.infer.base import InferBase, InferParameters
 
+class _Path:
+    def __init__(self, path):
+        self.path = path
 
 @inherits(InferParameters)
 class DeployInferLocal(InferBase):
@@ -43,7 +46,7 @@ class DeployInferLocal(InferBase):
 
     @property
     def model_repo_dir(self):
-        return self.input()["model_repository"].path
+        return '/home/bhavya.gupta/experiments/aframe/export/model_repo'
 
     def htcondor_workflow_run_context(self):
         """

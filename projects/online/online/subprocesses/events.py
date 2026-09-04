@@ -1,4 +1,5 @@
 from queue import Queue
+import os
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,7 +30,7 @@ def event_creation_subprocess(
 
     # Need to create the producer within the subprocess that uses it
     gdb.kafka_producer = GraceDbKafkaProducer(
-        bootstrap_servers="kafka-dev.ligo.org:9092",
+        bootstrap_servers=os.getenv("GRACEDB_KAFKA_BOOTSTRAP_SERVERS"),
         service_url=gdb.server.service_url,
         ca_cert_path=certifi.where(),
     )

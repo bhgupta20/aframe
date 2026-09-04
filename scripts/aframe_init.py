@@ -109,6 +109,10 @@ def create_online_runfile(path: Path):
     cmd = "apptainer run --nv "
     # bind /local/aframe for finding scitokens
     cmd += "--bind /local/aframe.online,$ONLINE_DATADIR"
+    cmd += (
+        "--env GRACEDB_KAFKA_BOOTSTRAP_SERVERS="
+        "$GRACEDB_KAFKA_BOOTSTRAP_SERVERS "
+    )
     cmd += "--env CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES "
     cmd += "--env AFRAME_ONLINE_OUTDIR=$AFRAME_ONLINE_OUTDIR "
     cmd += "--env ONLINE_DATADIR=$ONLINE_DATADIR "
@@ -175,6 +179,9 @@ def create_online_runfile(path: Path):
 
     # Location of Aframe containers
     export AFRAME_CONTAINER=$HOME/images/aframe/online.sif
+    
+    # GraceDB Kafka bootstrap servers
+    export GRACEDB_KAFKA_BOOTSTRAP_SERVERS="kafkagracedb1.igwn.org:9092"
 
     config=$RUN_DIR/config.yaml
 
